@@ -1,5 +1,10 @@
 # go-statsd
 
+[![Build Status](https://travis-ci.org/smira/go-statsd.svg?branch=master)](https://travis-ci.org/smira/go-statsd)
+[![Documentation](https://godoc.org/github.com/smira/go-statsd?status.svg)](http://godoc.org/github.com/smira/go-statsd)
+[![Go Report Card](https://goreportcard.com/badge/github.com/smira/go-statsd)](https://goreportcard.com/report/github.com/smira/go-statsd)
+[![License](https://img.shields.io/github/license/smira/go-statsd.svg?maxAge=2592000)](https://github.com/smira/go-statsd/LICENSE)
+
 Go statsd client library with zero allocation overhead, great performance and automatic
 reconnects.
 
