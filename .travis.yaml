@@ -1,0 +1,13 @@
+dist: trusty
+sudo: false
+
+language: go
+
+go:
+  - 1.8.x
+  - 1.9.x
+  - master
+
+matrix:
+    allow_failures:
+        - go: master
