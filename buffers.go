@@ -26,30 +26,38 @@ SOFTWARE.
 
 import "sync/atomic"
 
-// getBuf locks the buffer and makes sure c.buf has enough space to store this metric
-func (c *Client) getBuf(stat string, extra int) {
-	c.bufLock.Lock()
-	if len(c.options.MetricPrefix)+len(stat)+40+len(c.buf)+extra > c.options.MaxPacketSize {
-		c.flushBuf()
+// checkBuf checks current buffer for overflow, and flushes buffer up to lastLen bytes on overflow
+//
+// overflow part is preserved in flushBuf
+func (c *Client) checkBuf(lastLen int) {
+	if len(c.buf) > c.options.MaxPacketSize {
+		c.flushBuf(lastLen)
 	}
 }
 
 // flushBuf sends buffer to the queue and initializes new buffer
-func (c *Client) flushBuf() {
-	// flush current buffer
-	select {
-	case c.sendQueue <- c.buf:
-	default:
-		// flush failed, we lost some data
-		atomic.AddInt64(&c.lostPacketsPeriod, 1)
-		atomic.AddInt64(&c.lostPacketsOverall, 1)
-	}
+func (c *Client) flushBuf(length int) {
+	sendBuf := c.buf[0:length]
+	tail := c.buf[length:len(c.buf)]
 
 	// get new buffer
 	select {
 	case c.buf = <-c.bufPool:
 		c.buf = c.buf[0:0]
 	default:
-		c.buf = make([]byte, 0, c.options.MaxPacketSize)
+		c.buf = make([]byte, 0, c.bufSize)
 	}
+
+	// copy tail to the new buffer
+	c.buf = append(c.buf, tail...)
+
+	// flush current buffer
+	select {
+	case c.sendQueue <- sendBuf:
+	default:
+		// flush failed, we lost some data
+		atomic.AddInt64(&c.lostPacketsPeriod, 1)
+		atomic.AddInt64(&c.lostPacketsOverall, 1)
+	}
+
 }
