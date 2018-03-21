@@ -25,6 +25,41 @@ Ideas were borrowed from the following stastd clients:
  * https://github.com/alexcesaro/statsd/
  * https://github.com/armon/go-metrics
 
+Usage
+
+Initialize client instance with options, one client per application is usually enough:
+
+    client := statsd.NewClient("localhost:8125",
+        statsd.MaxPacketSize(1400),
+        statsd.MetricPrefix("web."))
+
+Send metrics as events happen in the application, metrics will be packed together and
+delivered to statsd server:
+
+    start := time.Now()
+    client.Incr("requests.http", 1)
+    ...
+    client.PrecisionTiming("requests.route.api.latency", time.Since(start))
+
+Shutdown client during application shutdown to flush all the pending metrics:
+
+    client.Close()
+
+Tagging
+
+Metrics could be tagged to support aggregation on TSDB side. go-statsd supports
+tags in InfluxDB and Datadog formats. Format and default tags (applied to every
+metric) are passed as options to the client initialization:
+
+    client := statsd.NewClient("localhost:8125",
+        statsd.TagStyle(TagFormatDatadog),
+        statsd.DefaultTags(statsd.StringTag("app", "billing")))
+
+For every metric sent, tags could be added as the last argument(s) to the function
+call:
+
+    client.Incr("request", 1,
+        statsd.StringTag("procotol", "http"), statsd.IntTag("port", 80))
 */
 package statsd
 

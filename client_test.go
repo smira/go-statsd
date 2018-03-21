@@ -69,6 +69,9 @@ func TestCommands(t *testing.T) {
 		MetricPrefix("foo."),
 		MaxPacketSize(1400),
 		ReconnectInterval(10*time.Second))
+	clientTagged := NewClient(inSocket.LocalAddr().String(),
+		TagStyle(TagFormatDatadog),
+		DefaultTags(StringTag("host", "example.com"), Int64Tag("weight", 38)))
 
 	compareOutput := func(actions func(), expected []string) func(*testing.T) {
 		return func(t *testing.T) {
@@ -88,6 +91,14 @@ func TestCommands(t *testing.T) {
 		func() { client.Incr("req.count", 30) },
 		[]string{"foo.req.count:30|c"}))
 
+	t.Run("IncrTaggedInflux", compareOutput(
+		func() { client.Incr("req.count", 30, StringTag("app", "service"), IntTag("port", 80)) },
+		[]string{"foo.req.count,app=service,port=80:30|c"}))
+
+	t.Run("IncrTaggedDatadog", compareOutput(
+		func() { clientTagged.Incr("req.count", 30, StringTag("app", "service"), IntTag("port", 80)) },
+		[]string{"req.count:30|c|#host:example.com,weight:38,app:service,port:80"}))
+
 	t.Run("Decr", compareOutput(
 		func() { client.Decr("req.count", 30) },
 		[]string{"foo.req.count:-30|c"}))
@@ -96,29 +107,79 @@ func TestCommands(t *testing.T) {
 		func() { client.Timing("req.duration", 100) },
 		[]string{"foo.req.duration:100|ms"}))
 
+	t.Run("TimingTaggedInflux", compareOutput(
+		func() { client.Timing("req.duration", 100, StringTag("app", "service"), IntTag("port", 80)) },
+		[]string{"foo.req.duration,app=service,port=80:100|ms"}))
+
+	t.Run("TimingTaggedDatadog", compareOutput(
+		func() { clientTagged.Timing("req.duration", 100, StringTag("app", "service"), IntTag("port", 80)) },
+		[]string{"req.duration:100|ms|#host:example.com,weight:38,app:service,port:80"}))
+
 	t.Run("PrecisionTiming", compareOutput(
 		func() { client.PrecisionTiming("req.duration", 157356*time.Microsecond) },
 		[]string{"foo.req.duration:157.356|ms"}))
+
+	t.Run("PrecisionTimingTaggedInflux", compareOutput(
+		func() {
+			client.PrecisionTiming("req.duration", 157356*time.Microsecond, StringTag("app", "service"), IntTag("port", 80))
+		},
+		[]string{"foo.req.duration,app=service,port=80:157.356|ms"}))
+
+	t.Run("PrecisionTimingTaggedDatadog", compareOutput(
+		func() {
+			clientTagged.PrecisionTiming("req.duration", 157356*time.Microsecond, StringTag("app", "service"), IntTag("port", 80))
+		},
+		[]string{"req.duration:157.356|ms|#host:example.com,weight:38,app:service,port:80"}))
 
 	t.Run("Gauge", compareOutput(
 		func() { client.Gauge("req.clients", 33); client.Gauge("req.clients", -533) },
 		[]string{"foo.req.clients:33|g\nfoo.req.clients:0|g\nfoo.req.clients:-533|g"}))
 
+	t.Run("GaugeTaggedInflux", compareOutput(
+		func() {
+			client.Gauge("req.clients", 33, StringTag("app", "service"), IntTag("port", 80))
+			client.Gauge("req.clients", -533, StringTag("app", "service"), IntTag("port", 80))
+		},
+		[]string{"foo.req.clients,app=service,port=80:33|g\nfoo.req.clients,app=service,port=80:0|g\nfoo.req.clients,app=service,port=80:-533|g"}))
+
 	t.Run("GaugeDelta", compareOutput(
 		func() { client.GaugeDelta("req.clients", 33); client.GaugeDelta("req.clients", -533) },
 		[]string{"foo.req.clients:+33|g\nfoo.req.clients:-533|g"}))
+
+	t.Run("GaugeDeltaTaggedDatadog", compareOutput(
+		func() { clientTagged.GaugeDelta("req.clients", 33); clientTagged.GaugeDelta("req.clients", -533) },
+		[]string{"req.clients:+33|g|#host:example.com,weight:38\nreq.clients:-533|g|#host:example.com,weight:38"}))
 
 	t.Run("FGauge", compareOutput(
 		func() { client.FGauge("req.clients", 33.5); client.FGauge("req.clients", -533.3) },
 		[]string{"foo.req.clients:33.5|g\nfoo.req.clients:0|g\nfoo.req.clients:-533.3|g"}))
 
+	t.Run("FGaugeTaggedInflux", compareOutput(
+		func() {
+			client.FGauge("req.clients", 33.5, StringTag("app", "service"), IntTag("port", 80))
+			client.FGauge("req.clients", -533.3, StringTag("app", "service"), IntTag("port", 80))
+		},
+		[]string{"foo.req.clients,app=service,port=80:33.5|g\nfoo.req.clients,app=service,port=80:0|g\nfoo.req.clients,app=service,port=80:-533.3|g"}))
+
 	t.Run("FGaugeDelta", compareOutput(
 		func() { client.FGaugeDelta("req.clients", 33.5); client.FGaugeDelta("req.clients", -533.3) },
 		[]string{"foo.req.clients:+33.5|g\nfoo.req.clients:-533.3|g"}))
 
+	t.Run("FGaugeDeltaTaggedDatadog", compareOutput(
+		func() { clientTagged.FGaugeDelta("req.clients", 33.5); clientTagged.FGaugeDelta("req.clients", -533.3) },
+		[]string{"req.clients:+33.5|g|#host:example.com,weight:38\nreq.clients:-533.3|g|#host:example.com,weight:38"}))
+
 	t.Run("SetAdd", compareOutput(
 		func() { client.SetAdd("req.user", "bob") },
 		[]string{"foo.req.user:bob|s"}))
+
+	t.Run("SetAddTaggedInflux", compareOutput(
+		func() { client.SetAdd("req.user", "bob", StringTag("app", "service"), IntTag("port", 80)) },
+		[]string{"foo.req.user,app=service,port=80:bob|s"}))
+
+	t.Run("SetAddTaggedDatadog", compareOutput(
+		func() { clientTagged.SetAdd("req.user", "bob", StringTag("app", "service"), IntTag("port", 80)) },
+		[]string{"req.user:bob|s|#host:example.com,weight:38,app:service,port:80"}))
 
 	t.Run("FlushedIncr", compareOutput(
 		func() {
@@ -251,6 +312,41 @@ func BenchmarkComplexDelivery(b *testing.B) {
 		client.PrecisionTiming("response.time.for.some.api.case1", 150*time.Millisecond)
 	}
 
+	_ = client.Close()
+	_ = inSocket.Close()
+}
+
+func BenchmarkTagged(b *testing.B) {
+	inSocket, err := net.ListenUDP("udp4", &net.UDPAddr{
+		IP: net.IPv4(127, 0, 0, 1),
+	})
+	if err != nil {
+		b.Error(err)
+	}
+
+	go func() {
+		buf := make([]byte, 1500)
+		for {
+			_, err := inSocket.Read(buf)
+			if err != nil {
+				return
+			}
+		}
+
+	}()
+
+	client := NewClient(inSocket.LocalAddr().String(), MetricPrefix(prefixNoDot), MaxPacketSize(1432),
+		FlushInterval(flushPeriod), SendLoopCount(2), DefaultTags(StringTag("host", "foo")),
+		SendQueueCapacity(10), BufPoolCapacity(40))
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		client.Incr(counterKey, 1, StringTag("route", "api.one"), IntTag("status", 200))
+		client.Timing("another.value", 157, StringTag("service", "db"))
+		client.PrecisionTiming("response.time.for.some.api", 150*time.Millisecond, IntTag("status", 404))
+		client.PrecisionTiming("response.time.for.some.api.case1", 150*time.Millisecond, StringTag("service", "db"), IntTag("status", 200))
+	}
 	_ = client.Close()
 	_ = inSocket.Close()
 }

@@ -113,6 +113,17 @@ type ClientOptions struct {
 	// Default value is 1, so packets are sent from single goroutine, this
 	// value might need to be bumped under high load
 	SendLoopCount int
+
+	// TagFormat controls formatting of StatsD tags
+	//
+	// If tags are not used, value of this setting isn't used.
+	//
+	// There are two predefined formats: for InfluxDB and Datadog, default
+	// format is InfluxDB tag format.
+	TagFormat *TagFormat
+
+	// DefaultTags is a list of tags to be applied to every metric
+	DefaultTags []Tag
 }
 
 // Option is type for option implementation
@@ -220,5 +231,22 @@ func SendQueueCapacity(capacity int) Option {
 func SendLoopCount(threads int) Option {
 	return func(c *ClientOptions) {
 		c.SendLoopCount = threads
+	}
+}
+
+// TagStyle controls formatting of StatsD tags
+//
+// There are two predefined formats: for InfluxDB and Datadog, default
+// format is InfluxDB tag format.
+func TagStyle(style *TagFormat) Option {
+	return func(c *ClientOptions) {
+		c.TagFormat = style
+	}
+}
+
+// DefaultTags defines a list of tags to be applied to every metric
+func DefaultTags(tags ...Tag) Option {
+	return func(c *ClientOptions) {
+		c.DefaultTags = tags
 	}
 }
