@@ -6,7 +6,7 @@ deps:
 	gometalinter --install
 
 test: deps
-	go test -race -v ./...
+	go test -race -v -coverprofile=coverage.txt -covermode=atomic
 
 bench: deps
 	go test -v -bench . -benchmem -run nothing ./...
