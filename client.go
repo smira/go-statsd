@@ -39,6 +39,7 @@ type Client struct {
 
 	bufPool chan []byte
 	buf     []byte
+	bufSize int
 	bufLock sync.Mutex
 
 	sendQueue chan []byte
@@ -73,11 +74,14 @@ func NewClient(addr string, options ...Option) *Client {
 		shutdown: make(chan struct{}),
 	}
 
+	// 1024 is room for overflow metric
+	c.bufSize = c.options.MaxPacketSize + 1024
+
 	for _, option := range options {
 		option(&c.options)
 	}
 
-	c.buf = make([]byte, 0, c.options.MaxPacketSize)
+	c.buf = make([]byte, 0, c.bufSize)
 	c.bufPool = make(chan []byte, c.options.BufPoolCapacity)
 	c.sendQueue = make(chan []byte, c.options.SendQueueCapacity)
 
@@ -114,7 +118,8 @@ func (c *Client) GetLostPackets() int64 {
 // Often used to note a particular event
 func (c *Client) Incr(stat string, count int64) {
 	if 0 != count {
-		c.getBuf(stat, 0)
+		c.bufLock.Lock()
+		lastLen := len(c.buf)
 
 		c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 		c.buf = append(c.buf, []byte(stat)...)
@@ -122,6 +127,7 @@ func (c *Client) Incr(stat string, count int64) {
 		c.buf = strconv.AppendInt(c.buf, count, 10)
 		c.buf = append(c.buf, []byte("|c\n")...)
 
+		c.checkBuf(lastLen)
 		c.bufLock.Unlock()
 	}
 }
@@ -135,7 +141,8 @@ func (c *Client) Decr(stat string, count int64) {
 
 // Timing tracks a duration event, the time delta must be given in milliseconds
 func (c *Client) Timing(stat string, delta int64) {
-	c.getBuf(stat, 0)
+	c.bufLock.Lock()
+	lastLen := len(c.buf)
 
 	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 	c.buf = append(c.buf, []byte(stat)...)
@@ -143,12 +150,14 @@ func (c *Client) Timing(stat string, delta int64) {
 	c.buf = strconv.AppendInt(c.buf, delta, 10)
 	c.buf = append(c.buf, []byte("|ms\n")...)
 
+	c.checkBuf(lastLen)
 	c.bufLock.Unlock()
 }
 
 // PrecisionTiming track a duration event, the time delta has to be a duration
 func (c *Client) PrecisionTiming(stat string, delta time.Duration) {
-	c.getBuf(stat, 0)
+	c.bufLock.Lock()
+	lastLen := len(c.buf)
 
 	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 	c.buf = append(c.buf, []byte(stat)...)
@@ -156,11 +165,13 @@ func (c *Client) PrecisionTiming(stat string, delta time.Duration) {
 	c.buf = strconv.AppendFloat(c.buf, float64(delta)/float64(time.Millisecond), 'f', -1, 64)
 	c.buf = append(c.buf, []byte("|ms\n")...)
 
+	c.checkBuf(lastLen)
 	c.bufLock.Unlock()
 }
 
 func (c *Client) igauge(stat string, sign []byte, value int64) {
-	c.getBuf(stat, 0)
+	c.bufLock.Lock()
+	lastLen := len(c.buf)
 
 	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 	c.buf = append(c.buf, []byte(stat)...)
@@ -169,6 +180,7 @@ func (c *Client) igauge(stat string, sign []byte, value int64) {
 	c.buf = strconv.AppendInt(c.buf, value, 10)
 	c.buf = append(c.buf, []byte("|g\n")...)
 
+	c.checkBuf(lastLen)
 	c.bufLock.Unlock()
 }
 
@@ -199,7 +211,8 @@ func (c *Client) GaugeDelta(stat string, value int64) {
 }
 
 func (c *Client) fgauge(stat string, sign []byte, value float64) {
-	c.getBuf(stat, 0)
+	c.bufLock.Lock()
+	lastLen := len(c.buf)
 
 	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 	c.buf = append(c.buf, []byte(stat)...)
@@ -208,6 +221,7 @@ func (c *Client) fgauge(stat string, sign []byte, value float64) {
 	c.buf = strconv.AppendFloat(c.buf, value, 'f', -1, 64)
 	c.buf = append(c.buf, []byte("|g\n")...)
 
+	c.checkBuf(lastLen)
 	c.bufLock.Unlock()
 }
 
@@ -231,7 +245,8 @@ func (c *Client) FGaugeDelta(stat string, value float64) {
 
 // SetAdd adds unique element to a set
 func (c *Client) SetAdd(stat string, value string) {
-	c.getBuf(stat, len(value))
+	c.bufLock.Lock()
+	lastLen := len(c.buf)
 
 	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 	c.buf = append(c.buf, []byte(stat)...)
@@ -239,5 +254,6 @@ func (c *Client) SetAdd(stat string, value string) {
 	c.buf = append(c.buf, []byte(value)...)
 	c.buf = append(c.buf, []byte("|s\n")...)
 
+	c.checkBuf(lastLen)
 	c.bufLock.Unlock()
 }

@@ -122,12 +122,12 @@ func TestCommands(t *testing.T) {
 
 	t.Run("FlushedIncr", compareOutput(
 		func() {
-			client.Incr("req.count", 30)
+			client.Incr("req.count", 40)
 			client.Incr("req.count", 20)
 			time.Sleep(150 * time.Millisecond)
 			client.Incr("req.count", 10)
 		},
-		[]string{"foo.req.count:30|c\nfoo.req.count:20|c", "foo.req.count:10|c"}))
+		[]string{"foo.req.count:40|c\nfoo.req.count:20|c", "foo.req.count:10|c"}))
 
 	t.Run("SplitIncr", compareOutput(
 		func() {
@@ -136,8 +136,8 @@ func TestCommands(t *testing.T) {
 			}
 		},
 		[]string{
-			"foo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c",
-			"foo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c",
+			"foo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c",
+			"foo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c\nfoo.req.count:30|c",
 		}))
 
 	_ = client.Close()

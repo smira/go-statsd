@@ -45,7 +45,7 @@ func (c *Client) flushLoop() {
 		case <-c.shutdown:
 			c.bufLock.Lock()
 			if len(c.buf) > 0 {
-				c.flushBuf()
+				c.flushBuf(len(c.buf))
 			}
 			c.bufLock.Unlock()
 
@@ -54,7 +54,7 @@ func (c *Client) flushLoop() {
 		case <-flushC:
 			c.bufLock.Lock()
 			if len(c.buf) > 0 {
-				c.flushBuf()
+				c.flushBuf(len(c.buf))
 			}
 			c.bufLock.Unlock()
 		}
