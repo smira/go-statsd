@@ -3,6 +3,7 @@
 [![Build Status](https://travis-ci.org/smira/go-statsd.svg?branch=master)](https://travis-ci.org/smira/go-statsd)
 [![Documentation](https://godoc.org/github.com/smira/go-statsd?status.svg)](http://godoc.org/github.com/smira/go-statsd)
 [![Go Report Card](https://goreportcard.com/badge/github.com/smira/go-statsd)](https://goreportcard.com/report/github.com/smira/go-statsd)
+[![codecov](https://codecov.io/gh/smira/go-statsd/branch/master/graph/badge.svg)](https://codecov.io/gh/smira/go-statsd)
 [![License](https://img.shields.io/github/license/smira/go-statsd.svg?maxAge=2592000)](https://github.com/smira/go-statsd/LICENSE)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bgithub.com%2Fsmira%2Fgo-statsd.svg?type=shield)](https://app.fossa.io/projects/git%2Bgithub.com%2Fsmira%2Fgo-statsd?ref=badge_shield)
 
@@ -42,6 +43,55 @@ if that happens it's usually signal of enormous metric volume.
 
 Any statsd-compatible server should work well with `go-statsd`, [statsite](https://github.com/statsite/statsite) works
 exceptionally well as it has great performance and low memory footprint even with huge number of metrics.
+
+## Usage
+
+Initialize client instance with options, one client per application is usually enough:
+
+```go
+client := statsd.NewClient("localhost:8125",
+    statsd.MaxPacketSize(1400),
+    statsd.MetricPrefix("web."))
+```
+
+Send metrics as events happen in the application, metrics will be packed together and
+delivered to statsd server:
+
+```go
+start := time.Now()
+client.Incr("requests.http", 1)
+// ...
+client.PrecisionTiming("requests.route.api.latency", time.Since(start))
+```
+
+Shutdown client during application shutdown to flush all the pending metrics:
+
+```go
+client.Close()
+```
+
+## Tagging
+
+Metrics could be tagged to support aggregation on TSDB side. go-statsd supports
+tags in [InfluxDB](https://github.com/influxdata/telegraf/tree/master/plugins/inputs/statsd)
+and [Datadog](https://docs.datadoghq.com/developers/dogstatsd/#datagram-format) formats.
+Format and default tags (applied to every metric) are passed as options
+to the client initialization:
+
+```go
+client := statsd.NewClient("localhost:8125",
+    statsd.TagStyle(TagFormatDatadog),
+    statsd.DefaultTags(statsd.StringTag("app", "billing")))
+```
+
+For every metric sent, tags could be added as the last argument(s) to the function
+call:
+
+```go
+client.Incr("request", 1,
+    statsd.StringTag("procotol", "http"), statsd.IntTag("port", 80))
+```
+
 
 ## Benchmark
 

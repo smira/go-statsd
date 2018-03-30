@@ -69,6 +69,7 @@ func NewClient(addr string, options ...Option) *Client {
 			BufPoolCapacity:   DefaultBufPoolCapacity,
 			SendQueueCapacity: DefaultSendQueueCapacity,
 			SendLoopCount:     DefaultSendLoopCount,
+			TagFormat:         TagFormatInfluxDB,
 		},
 
 		shutdown: make(chan struct{}),
@@ -115,17 +116,24 @@ func (c *Client) GetLostPackets() int64 {
 
 // Incr increments a counter metric
 //
-// Often used to note a particular event
-func (c *Client) Incr(stat string, count int64) {
+// Often used to note a particular event, for example incoming web request.
+func (c *Client) Incr(stat string, count int64, tags ...Tag) {
 	if 0 != count {
 		c.bufLock.Lock()
 		lastLen := len(c.buf)
 
 		c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 		c.buf = append(c.buf, []byte(stat)...)
+		if c.options.TagFormat.Placement == TagPlacementName {
+			c.buf = c.formatTags(c.buf, tags)
+		}
 		c.buf = append(c.buf, ':')
 		c.buf = strconv.AppendInt(c.buf, count, 10)
-		c.buf = append(c.buf, []byte("|c\n")...)
+		c.buf = append(c.buf, []byte("|c")...)
+		if c.options.TagFormat.Placement == TagPlacementSuffix {
+			c.buf = c.formatTags(c.buf, tags)
+		}
+		c.buf = append(c.buf, '\n')
 
 		c.checkBuf(lastLen)
 		c.bufLock.Unlock()
@@ -135,50 +143,74 @@ func (c *Client) Incr(stat string, count int64) {
 // Decr decrements a counter metri
 //
 // Often used to note a particular event
-func (c *Client) Decr(stat string, count int64) {
-	c.Incr(stat, -count)
+func (c *Client) Decr(stat string, count int64, tags ...Tag) {
+	c.Incr(stat, -count, tags...)
 }
 
 // Timing tracks a duration event, the time delta must be given in milliseconds
-func (c *Client) Timing(stat string, delta int64) {
+func (c *Client) Timing(stat string, delta int64, tags ...Tag) {
 	c.bufLock.Lock()
 	lastLen := len(c.buf)
 
 	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 	c.buf = append(c.buf, []byte(stat)...)
+	if c.options.TagFormat.Placement == TagPlacementName {
+		c.buf = c.formatTags(c.buf, tags)
+	}
 	c.buf = append(c.buf, ':')
 	c.buf = strconv.AppendInt(c.buf, delta, 10)
-	c.buf = append(c.buf, []byte("|ms\n")...)
+	c.buf = append(c.buf, []byte("|ms")...)
+	if c.options.TagFormat.Placement == TagPlacementSuffix {
+		c.buf = c.formatTags(c.buf, tags)
+	}
+	c.buf = append(c.buf, '\n')
 
 	c.checkBuf(lastLen)
 	c.bufLock.Unlock()
 }
 
 // PrecisionTiming track a duration event, the time delta has to be a duration
-func (c *Client) PrecisionTiming(stat string, delta time.Duration) {
+//
+// Usually request processing time, time to run database query, etc. are used with
+// this metric type.
+func (c *Client) PrecisionTiming(stat string, delta time.Duration, tags ...Tag) {
 	c.bufLock.Lock()
 	lastLen := len(c.buf)
 
 	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 	c.buf = append(c.buf, []byte(stat)...)
+	if c.options.TagFormat.Placement == TagPlacementName {
+		c.buf = c.formatTags(c.buf, tags)
+	}
 	c.buf = append(c.buf, ':')
 	c.buf = strconv.AppendFloat(c.buf, float64(delta)/float64(time.Millisecond), 'f', -1, 64)
-	c.buf = append(c.buf, []byte("|ms\n")...)
+	c.buf = append(c.buf, []byte("|ms")...)
+	if c.options.TagFormat.Placement == TagPlacementSuffix {
+		c.buf = c.formatTags(c.buf, tags)
+	}
+	c.buf = append(c.buf, '\n')
 
 	c.checkBuf(lastLen)
 	c.bufLock.Unlock()
 }
 
-func (c *Client) igauge(stat string, sign []byte, value int64) {
+func (c *Client) igauge(stat string, sign []byte, value int64, tags ...Tag) {
 	c.bufLock.Lock()
 	lastLen := len(c.buf)
 
 	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 	c.buf = append(c.buf, []byte(stat)...)
+	if c.options.TagFormat.Placement == TagPlacementName {
+		c.buf = c.formatTags(c.buf, tags)
+	}
 	c.buf = append(c.buf, ':')
 	c.buf = append(c.buf, sign...)
 	c.buf = strconv.AppendInt(c.buf, value, 10)
-	c.buf = append(c.buf, []byte("|g\n")...)
+	c.buf = append(c.buf, []byte("|g")...)
+	if c.options.TagFormat.Placement == TagPlacementSuffix {
+		c.buf = c.formatTags(c.buf, tags)
+	}
+	c.buf = append(c.buf, '\n')
 
 	c.checkBuf(lastLen)
 	c.bufLock.Unlock()
@@ -192,67 +224,83 @@ func (c *Client) igauge(stat string, sign []byte, value int64) {
 // delta to be true, that specifies that the gauge should be updated, not set. Due to the
 // underlying protocol, you can't explicitly set a gauge to a negative number without
 // first setting it to zero.
-func (c *Client) Gauge(stat string, value int64) {
+func (c *Client) Gauge(stat string, value int64, tags ...Tag) {
 	if value < 0 {
-		c.igauge(stat, nil, 0)
+		c.igauge(stat, nil, 0, tags...)
 	}
 
-	c.igauge(stat, nil, value)
+	c.igauge(stat, nil, value, tags...)
 }
 
 // GaugeDelta sends a change for a gauge
-func (c *Client) GaugeDelta(stat string, value int64) {
+func (c *Client) GaugeDelta(stat string, value int64, tags ...Tag) {
 	// Gauge Deltas are always sent with a leading '+' or '-'. The '-' takes care of itself but the '+' must added by hand
 	if value < 0 {
-		c.igauge(stat, nil, value)
+		c.igauge(stat, nil, value, tags...)
 	} else {
-		c.igauge(stat, []byte{'+'}, value)
+		c.igauge(stat, []byte{'+'}, value, tags...)
 	}
 }
 
-func (c *Client) fgauge(stat string, sign []byte, value float64) {
+func (c *Client) fgauge(stat string, sign []byte, value float64, tags ...Tag) {
 	c.bufLock.Lock()
 	lastLen := len(c.buf)
 
 	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 	c.buf = append(c.buf, []byte(stat)...)
+	if c.options.TagFormat.Placement == TagPlacementName {
+		c.buf = c.formatTags(c.buf, tags)
+	}
 	c.buf = append(c.buf, ':')
 	c.buf = append(c.buf, sign...)
 	c.buf = strconv.AppendFloat(c.buf, value, 'f', -1, 64)
-	c.buf = append(c.buf, []byte("|g\n")...)
+	c.buf = append(c.buf, []byte("|g")...)
+	if c.options.TagFormat.Placement == TagPlacementSuffix {
+		c.buf = c.formatTags(c.buf, tags)
+	}
+	c.buf = append(c.buf, '\n')
 
 	c.checkBuf(lastLen)
 	c.bufLock.Unlock()
 }
 
 // FGauge sends a floating point value for a gauge
-func (c *Client) FGauge(stat string, value float64) {
+func (c *Client) FGauge(stat string, value float64, tags ...Tag) {
 	if value < 0 {
-		c.igauge(stat, nil, 0)
+		c.igauge(stat, nil, 0, tags...)
 	}
 
-	c.fgauge(stat, nil, value)
+	c.fgauge(stat, nil, value, tags...)
 }
 
 // FGaugeDelta sends a floating point change for a gauge
-func (c *Client) FGaugeDelta(stat string, value float64) {
+func (c *Client) FGaugeDelta(stat string, value float64, tags ...Tag) {
 	if value < 0 {
-		c.fgauge(stat, nil, value)
+		c.fgauge(stat, nil, value, tags...)
 	} else {
-		c.fgauge(stat, []byte{'+'}, value)
+		c.fgauge(stat, []byte{'+'}, value, tags...)
 	}
 }
 
 // SetAdd adds unique element to a set
-func (c *Client) SetAdd(stat string, value string) {
+//
+// Statsd server will provide cardinality of the set over aggregation period.
+func (c *Client) SetAdd(stat string, value string, tags ...Tag) {
 	c.bufLock.Lock()
 	lastLen := len(c.buf)
 
 	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
 	c.buf = append(c.buf, []byte(stat)...)
+	if c.options.TagFormat.Placement == TagPlacementName {
+		c.buf = c.formatTags(c.buf, tags)
+	}
 	c.buf = append(c.buf, ':')
 	c.buf = append(c.buf, []byte(value)...)
-	c.buf = append(c.buf, []byte("|s\n")...)
+	c.buf = append(c.buf, []byte("|s")...)
+	if c.options.TagFormat.Placement == TagPlacementSuffix {
+		c.buf = c.formatTags(c.buf, tags)
+	}
+	c.buf = append(c.buf, '\n')
 
 	c.checkBuf(lastLen)
 	c.bufLock.Unlock()
