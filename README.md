@@ -122,6 +122,13 @@ Ideas were borrowed from the following stastd clients:
 * https://github.com/alexcesaro/statsd/ (MIT License, https://github.com/alexcesaro/statsd/blob/master/LICENSE)
 * https://github.com/armon/go-metrics (MIT License, https://github.com/armon/go-metrics/blob/master/LICENSE)
 
+## Talks
+
+I gave a talk about design and optimizations which went into go-statsd at
+[Gophercon Russia 2018](https://www.gophercon-russia.ru/):
+[slides](https://talks.godoc.org/github.com/smira/gopherconru2018/go-statsd.slide),
+[source](https://github.com/smira/gopherconru2018).
+
 ## License
 
 License is [MIT License](LICENSE).
