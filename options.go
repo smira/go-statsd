@@ -131,6 +131,12 @@ type Option func(c *ClientOptions)
 
 // MetricPrefix is prefix to prepend to every metric being sent
 //
+// Usually metrics are prefixed with app name, e.g. `app.`.
+// To avoid providing this prefix for every metric being collected,
+// and to enable shared libraries to collect metric under app name,
+// use MetricPrefix to set global prefix for all the app metrics,
+// e.g. `MetricPrefix("app".)`.
+//
 // If not set defaults to empty string
 func MetricPrefix(prefix string) Option {
 	return func(c *ClientOptions) {

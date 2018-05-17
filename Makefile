@@ -15,4 +15,4 @@ check: deps
 	go test -i
 	gometalinter --vendored-linters --deadline=30s --cyclo-over=15 ./...
 
-.PHONY: deps install test check
+.PHONY: deps bench test check
