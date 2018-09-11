@@ -88,7 +88,7 @@ RECONNECT:
 		case buf, ok := <-c.sendQueue:
 			// Get a buffer from the queue
 			if !ok {
-				_ = sock.Close()
+				_ = sock.Close() // nolint: gosec
 				c.shutdownWg.Done()
 				return
 			}
@@ -98,7 +98,7 @@ RECONNECT:
 				_, err := sock.Write(buf[0 : len(buf)-1])
 				if err != nil {
 					c.options.Logger.Printf("[STATSD] Error writing to socket: %s", err)
-					_ = sock.Close()
+					_ = sock.Close() // nolint: gosec
 					goto WAIT
 				}
 			}
@@ -110,7 +110,7 @@ RECONNECT:
 				// pool is full, let GC handle the buf
 			}
 		case <-reconnectC:
-			_ = sock.Close()
+			_ = sock.Close() // nolint: gosec
 			goto RECONNECT
 		}
 	}
