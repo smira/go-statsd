@@ -25,7 +25,6 @@ SOFTWARE.
 */
 
 import (
-	"log"
 	"time"
 )
 
@@ -42,6 +41,12 @@ const (
 	DefaultSendQueueCapacity = 10
 	DefaultSendLoopCount     = 1
 )
+
+// SomeLogger defines logging interface that allows using 3rd party loggers
+// (e.g. github.com/sirupsen/logrus) with this Statsd client.
+type SomeLogger interface {
+	Printf(fmt string, args ...interface{})
+}
 
 // ClientOptions are statsd client settings
 type ClientOptions struct {
@@ -90,7 +95,7 @@ type ClientOptions struct {
 	// Logger is used by statsd client to report errors and lost packets
 	//
 	// If not set, default logger to stderr with prefix `[STATSD] ` is being used
-	Logger *log.Logger
+	Logger SomeLogger
 
 	// BufPoolCapacity controls size of pre-allocated buffer cache
 	//
@@ -200,7 +205,7 @@ func ReportInterval(interval time.Duration) Option {
 // Logger is used by statsd client to report errors and lost packets
 //
 // If not set, default logger to stderr with prefix `[STATSD] ` is being used
-func Logger(logger *log.Logger) Option {
+func Logger(logger SomeLogger) Option {
 	return func(c *ClientOptions) {
 		c.Logger = logger
 	}
