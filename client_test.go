@@ -206,6 +206,55 @@ func TestCommands(t *testing.T) {
 	close(received)
 }
 
+func TestClones(t *testing.T) {
+	inSocket, received := setupListener(t)
+
+	client := NewClient(inSocket.LocalAddr().String(),
+		MetricPrefix("foo."),
+		MaxPacketSize(1400),
+		ReconnectInterval(10*time.Second))
+	client2 := client.CloneWithPrefix("bar.")
+	client3 := client2.CloneWithPrefixExtension("blah.")
+
+	compareOutput := func(actions func(), expected []string) func(*testing.T) {
+		return func(t *testing.T) {
+			actions()
+
+			for _, exp := range expected {
+				var buf []byte
+				select {
+				case buf = <-received:
+				case <-time.After(time.Second):
+					t.Errorf("timeout waiting for %v", exp)
+					return
+				}
+
+				if string(buf) != exp {
+					t.Errorf("unexpected part received: %#v != %#v", string(buf), exp)
+				}
+			}
+		}
+	}
+
+	t.Run("Original", compareOutput(
+		func() { client.Incr("req.count", 30) },
+		[]string{"foo.req.count:30|c"}))
+
+	t.Run("CloneWithPrefix", compareOutput(
+		func() { client2.Incr("req.count", 30) },
+		[]string{"bar.req.count:30|c"}))
+
+	t.Run("CloneWithPrefixExtension", compareOutput(
+		func() { client3.Incr("req.count", 30) },
+		[]string{"bar.blah.req.count:30|c"}))
+
+	_ = client.Close()
+	_ = client2.Close()
+	_ = client3.Close()
+	_ = inSocket.Close()
+	close(received)
+}
+
 func TestConcurrent(t *testing.T) {
 	inSocket, received := setupListener(t)
 
