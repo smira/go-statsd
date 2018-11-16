@@ -15,8 +15,8 @@ import (
 
 const (
 	addr        = ":0"
-	prefix      = "prefix."
-	prefixNoDot = "prefix"
+	prefix      = "metricPrefix."
+	prefixNoDot = "metricPrefix"
 	counterKey  = "foo.bar.counter"
 	gaugeKey    = "foo.bar.gauge"
 	gaugeValue  = 42

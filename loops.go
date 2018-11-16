@@ -31,65 +31,65 @@ import (
 )
 
 // flushLoop makes sure metrics are flushed every flushInterval
-func (c *Client) flushLoop() {
+func (t *transport) flushLoop(flushInterval time.Duration) {
 	var flushC <-chan time.Time
 
-	if c.options.FlushInterval > 0 {
-		flushTicker := time.NewTicker(c.options.FlushInterval)
+	if flushInterval > 0 {
+		flushTicker := time.NewTicker(flushInterval)
 		defer flushTicker.Stop()
 		flushC = flushTicker.C
 	}
 
 	for {
 		select {
-		case <-c.shutdown:
-			c.bufLock.Lock()
-			if len(c.buf) > 0 {
-				c.flushBuf(len(c.buf))
+		case <-t.shutdown:
+			t.bufLock.Lock()
+			if len(t.buf) > 0 {
+				t.flushBuf(len(t.buf))
 			}
-			c.bufLock.Unlock()
+			t.bufLock.Unlock()
 
-			close(c.sendQueue)
+			close(t.sendQueue)
 			return
 		case <-flushC:
-			c.bufLock.Lock()
-			if len(c.buf) > 0 {
-				c.flushBuf(len(c.buf))
+			t.bufLock.Lock()
+			if len(t.buf) > 0 {
+				t.flushBuf(len(t.buf))
 			}
-			c.bufLock.Unlock()
+			t.bufLock.Unlock()
 		}
 	}
 }
 
 // sendLoop handles packet delivery over UDP and periodic reconnects
-func (c *Client) sendLoop() {
+func (t *transport) sendLoop(addr string, reconnectInterval, retryTimeout time.Duration, log SomeLogger) {
 	var (
 		sock       net.Conn
 		err        error
 		reconnectC <-chan time.Time
 	)
 
-	if c.options.ReconnectInterval > 0 {
-		reconnectTicker := time.NewTicker(c.options.ReconnectInterval)
+	if reconnectInterval > 0 {
+		reconnectTicker := time.NewTicker(reconnectInterval)
 		defer reconnectTicker.Stop()
 		reconnectC = reconnectTicker.C
 	}
 
 RECONNECT:
 	// Attempt to connect
-	sock, err = net.Dial("udp", c.options.Addr)
+	sock, err = net.Dial("udp", addr)
 	if err != nil {
-		c.options.Logger.Printf("[STATSD] Error connecting to server: %s", err)
+		log.Printf("[STATSD] Error connecting to server: %s", err)
 		goto WAIT
 	}
 
 	for {
 		select {
-		case buf, ok := <-c.sendQueue:
+		case buf, ok := <-t.sendQueue:
 			// Get a buffer from the queue
 			if !ok {
 				_ = sock.Close() // nolint: gosec
-				c.shutdownWg.Done()
+				t.shutdownWg.Done()
 				return
 			}
 
@@ -97,7 +97,7 @@ RECONNECT:
 				// cut off \n in the end
 				_, err := sock.Write(buf[0 : len(buf)-1])
 				if err != nil {
-					c.options.Logger.Printf("[STATSD] Error writing to socket: %s", err)
+					log.Printf("[STATSD] Error writing to socket: %s", err)
 					_ = sock.Close() // nolint: gosec
 					goto WAIT
 				}
@@ -105,7 +105,7 @@ RECONNECT:
 
 			// return buffer to the pool
 			select {
-			case c.bufPool <- buf:
+			case t.bufPool <- buf:
 			default:
 				// pool is full, let GC handle the buf
 			}
@@ -117,25 +117,25 @@ RECONNECT:
 
 WAIT:
 	// Wait for a while
-	time.Sleep(c.options.RetryTimeout)
+	time.Sleep(retryTimeout)
 	goto RECONNECT
 }
 
 // reportLoop reports periodically number of packets lost
-func (c *Client) reportLoop() {
-	defer c.shutdownWg.Done()
+func (t *transport) reportLoop(reportInterval time.Duration, log SomeLogger) {
+	defer t.shutdownWg.Done()
 
-	reportTicker := time.NewTicker(c.options.ReportInterval)
+	reportTicker := time.NewTicker(reportInterval)
 	defer reportTicker.Stop()
 
 	for {
 		select {
-		case <-c.shutdown:
+		case <-t.shutdown:
 			return
 		case <-reportTicker.C:
-			lostPeriod := atomic.SwapInt64(&c.lostPacketsPeriod, 0)
+			lostPeriod := atomic.SwapInt64(&t.lostPacketsPeriod, 0)
 			if lostPeriod > 0 {
-				c.options.Logger.Printf("[STATSD] %d packets lost (overflow)", lostPeriod)
+				log.Printf("[STATSD] %d packets lost (overflow)", lostPeriod)
 			}
 		}
 	}

@@ -53,7 +53,7 @@ type ClientOptions struct {
 	// Addr is statsd server address in "host:port" format
 	Addr string
 
-	// MetricPrefix is prefix to prepend to every metric being sent
+	// MetricPrefix is metricPrefix to prepend to every metric being sent
 	//
 	// If not set defaults to empty string
 	MetricPrefix string
@@ -94,7 +94,7 @@ type ClientOptions struct {
 
 	// Logger is used by statsd client to report errors and lost packets
 	//
-	// If not set, default logger to stderr with prefix `[STATSD] ` is being used
+	// If not set, default logger to stderr with metricPrefix `[STATSD] ` is being used
 	Logger SomeLogger
 
 	// BufPoolCapacity controls size of pre-allocated buffer cache
@@ -131,15 +131,15 @@ type ClientOptions struct {
 	DefaultTags []Tag
 }
 
-// Option is type for option implementation
+// Option is type for option transport
 type Option func(c *ClientOptions)
 
-// MetricPrefix is prefix to prepend to every metric being sent
+// MetricPrefix is metricPrefix to prepend to every metric being sent
 //
 // Usually metrics are prefixed with app name, e.g. `app.`.
-// To avoid providing this prefix for every metric being collected,
+// To avoid providing this metricPrefix for every metric being collected,
 // and to enable shared libraries to collect metric under app name,
-// use MetricPrefix to set global prefix for all the app metrics,
+// use MetricPrefix to set global metricPrefix for all the app metrics,
 // e.g. `MetricPrefix("app".)`.
 //
 // If not set defaults to empty string
@@ -204,7 +204,7 @@ func ReportInterval(interval time.Duration) Option {
 
 // Logger is used by statsd client to report errors and lost packets
 //
-// If not set, default logger to stderr with prefix `[STATSD] ` is being used
+// If not set, default logger to stderr with metricPrefix `[STATSD] ` is being used
 func Logger(logger SomeLogger) Option {
 	return func(c *ClientOptions) {
 		c.Logger = logger

@@ -35,19 +35,27 @@ import (
 
 // Client implements statsd client
 type Client struct {
-	options ClientOptions
+	trans        *transport
+	metricPrefix string
+	defaultTags  []Tag
+}
 
-	bufPool chan []byte
-	buf     []byte
-	bufSize int
-	bufLock sync.Mutex
+type transport struct {
+	maxPacketSize int
+	tagFormat     *TagFormat
 
+	bufPool   chan []byte
+	buf       []byte
+	bufSize   int
+	bufLock   sync.Mutex
 	sendQueue chan []byte
 
-	shutdown   chan struct{}
-	shutdownWg sync.WaitGroup
+	shutdown     chan struct{}
+	shutdownOnce sync.Once
+	shutdownWg   sync.WaitGroup
 
-	lostPacketsPeriod, lostPacketsOverall int64
+	lostPacketsPeriod  int64
+	lostPacketsOverall int64
 }
 
 // NewClient creates new statsd client and starts background processing
@@ -56,62 +64,90 @@ type Client struct {
 //
 // Client settings could be controlled via functions of type Option
 func NewClient(addr string, options ...Option) *Client {
-	c := &Client{
-		options: ClientOptions{
-			Addr:              addr,
-			MetricPrefix:      DefaultMetricPrefix,
-			MaxPacketSize:     DefaultMaxPacketSize,
-			FlushInterval:     DefaultFlushInterval,
-			ReconnectInterval: DefaultReconnectInterval,
-			ReportInterval:    DefaultReportInterval,
-			RetryTimeout:      DefaultRetryTimeout,
-			Logger:            log.New(os.Stderr, DefaultLogPrefix, log.LstdFlags),
-			BufPoolCapacity:   DefaultBufPoolCapacity,
-			SendQueueCapacity: DefaultSendQueueCapacity,
-			SendLoopCount:     DefaultSendLoopCount,
-			TagFormat:         TagFormatInfluxDB,
-		},
-
-		shutdown: make(chan struct{}),
+	opts := ClientOptions{
+		Addr:              addr,
+		MetricPrefix:      DefaultMetricPrefix,
+		MaxPacketSize:     DefaultMaxPacketSize,
+		FlushInterval:     DefaultFlushInterval,
+		ReconnectInterval: DefaultReconnectInterval,
+		ReportInterval:    DefaultReportInterval,
+		RetryTimeout:      DefaultRetryTimeout,
+		Logger:            log.New(os.Stderr, DefaultLogPrefix, log.LstdFlags),
+		BufPoolCapacity:   DefaultBufPoolCapacity,
+		SendQueueCapacity: DefaultSendQueueCapacity,
+		SendLoopCount:     DefaultSendLoopCount,
+		TagFormat:         TagFormatInfluxDB,
 	}
 
+	c := &Client{
+		trans: &transport{
+			shutdown: make(chan struct{}),
+		},
+	}
 	// 1024 is room for overflow metric
-	c.bufSize = c.options.MaxPacketSize + 1024
+	c.trans.bufSize = opts.MaxPacketSize + 1024
 
 	for _, option := range options {
-		option(&c.options)
+		option(&opts)
 	}
 
-	c.buf = make([]byte, 0, c.bufSize)
-	c.bufPool = make(chan []byte, c.options.BufPoolCapacity)
-	c.sendQueue = make(chan []byte, c.options.SendQueueCapacity)
+	c.metricPrefix = opts.MetricPrefix
+	c.defaultTags = opts.DefaultTags
 
-	go c.flushLoop()
+	c.trans.tagFormat = opts.TagFormat
+	c.trans.maxPacketSize = opts.MaxPacketSize
+	c.trans.buf = make([]byte, 0, c.trans.bufSize)
+	c.trans.bufPool = make(chan []byte, opts.BufPoolCapacity)
+	c.trans.sendQueue = make(chan []byte, opts.SendQueueCapacity)
 
-	for i := 0; i < c.options.SendLoopCount; i++ {
-		c.shutdownWg.Add(1)
-		go c.sendLoop()
+	go c.trans.flushLoop(opts.FlushInterval)
+
+	for i := 0; i < opts.SendLoopCount; i++ {
+		c.trans.shutdownWg.Add(1)
+		go c.trans.sendLoop(opts.Addr, opts.ReconnectInterval, opts.RetryTimeout, opts.Logger)
 	}
 
-	if c.options.ReportInterval > 0 {
-		c.shutdownWg.Add(1)
-		go c.reportLoop()
+	if opts.ReportInterval > 0 {
+		c.trans.shutdownWg.Add(1)
+		go c.trans.reportLoop(opts.ReportInterval, opts.Logger)
 	}
 
 	return c
 }
 
-// Close stops the client
+// Close stops the client and all its clones. Calling it on a clone has the
+// same effect as calling it on the original client - it is stopped with all
+// its clones.
 func (c *Client) Close() error {
-	close(c.shutdown)
-	c.shutdownWg.Wait()
-
+	c.trans.close()
 	return nil
+}
+
+func (t *transport) close() {
+	t.shutdownOnce.Do(func() {
+		close(t.shutdown)
+	})
+	t.shutdownWg.Wait()
+}
+
+// CloneWithPrefix returns a clone of the original client with different metricPrefix.
+func (c *Client) CloneWithPrefix(prefix string) *Client {
+	clone := *c
+	clone.metricPrefix = prefix
+	return &clone
+}
+
+// CloneWithPrefixExtension returns a clone of the original client with the
+// original prefixed extended with the specified string.
+func (c *Client) CloneWithPrefixExtension(extension string) *Client {
+	clone := *c
+	clone.metricPrefix = clone.metricPrefix + extension
+	return &clone
 }
 
 // GetLostPackets returns number of packets lost during client lifecycle
 func (c *Client) GetLostPackets() int64 {
-	return atomic.LoadInt64(&c.lostPacketsOverall)
+	return atomic.LoadInt64(&c.trans.lostPacketsOverall)
 }
 
 // Incr increments a counter metric
@@ -119,24 +155,24 @@ func (c *Client) GetLostPackets() int64 {
 // Often used to note a particular event, for example incoming web request.
 func (c *Client) Incr(stat string, count int64, tags ...Tag) {
 	if 0 != count {
-		c.bufLock.Lock()
-		lastLen := len(c.buf)
+		c.trans.bufLock.Lock()
+		lastLen := len(c.trans.buf)
 
-		c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
-		c.buf = append(c.buf, []byte(stat)...)
-		if c.options.TagFormat.Placement == TagPlacementName {
-			c.buf = c.formatTags(c.buf, tags)
+		c.trans.buf = append(c.trans.buf, []byte(c.metricPrefix)...)
+		c.trans.buf = append(c.trans.buf, []byte(stat)...)
+		if c.trans.tagFormat.Placement == TagPlacementName {
+			c.trans.buf = c.formatTags(c.trans.buf, tags)
 		}
-		c.buf = append(c.buf, ':')
-		c.buf = strconv.AppendInt(c.buf, count, 10)
-		c.buf = append(c.buf, []byte("|c")...)
-		if c.options.TagFormat.Placement == TagPlacementSuffix {
-			c.buf = c.formatTags(c.buf, tags)
+		c.trans.buf = append(c.trans.buf, ':')
+		c.trans.buf = strconv.AppendInt(c.trans.buf, count, 10)
+		c.trans.buf = append(c.trans.buf, []byte("|c")...)
+		if c.trans.tagFormat.Placement == TagPlacementSuffix {
+			c.trans.buf = c.formatTags(c.trans.buf, tags)
 		}
-		c.buf = append(c.buf, '\n')
+		c.trans.buf = append(c.trans.buf, '\n')
 
-		c.checkBuf(lastLen)
-		c.bufLock.Unlock()
+		c.trans.checkBuf(lastLen)
+		c.trans.bufLock.Unlock()
 	}
 }
 
@@ -149,24 +185,24 @@ func (c *Client) Decr(stat string, count int64, tags ...Tag) {
 
 // Timing tracks a duration event, the time delta must be given in milliseconds
 func (c *Client) Timing(stat string, delta int64, tags ...Tag) {
-	c.bufLock.Lock()
-	lastLen := len(c.buf)
+	c.trans.bufLock.Lock()
+	lastLen := len(c.trans.buf)
 
-	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
-	c.buf = append(c.buf, []byte(stat)...)
-	if c.options.TagFormat.Placement == TagPlacementName {
-		c.buf = c.formatTags(c.buf, tags)
+	c.trans.buf = append(c.trans.buf, []byte(c.metricPrefix)...)
+	c.trans.buf = append(c.trans.buf, []byte(stat)...)
+	if c.trans.tagFormat.Placement == TagPlacementName {
+		c.trans.buf = c.formatTags(c.trans.buf, tags)
 	}
-	c.buf = append(c.buf, ':')
-	c.buf = strconv.AppendInt(c.buf, delta, 10)
-	c.buf = append(c.buf, []byte("|ms")...)
-	if c.options.TagFormat.Placement == TagPlacementSuffix {
-		c.buf = c.formatTags(c.buf, tags)
+	c.trans.buf = append(c.trans.buf, ':')
+	c.trans.buf = strconv.AppendInt(c.trans.buf, delta, 10)
+	c.trans.buf = append(c.trans.buf, []byte("|ms")...)
+	if c.trans.tagFormat.Placement == TagPlacementSuffix {
+		c.trans.buf = c.formatTags(c.trans.buf, tags)
 	}
-	c.buf = append(c.buf, '\n')
+	c.trans.buf = append(c.trans.buf, '\n')
 
-	c.checkBuf(lastLen)
-	c.bufLock.Unlock()
+	c.trans.checkBuf(lastLen)
+	c.trans.bufLock.Unlock()
 }
 
 // PrecisionTiming track a duration event, the time delta has to be a duration
@@ -174,46 +210,46 @@ func (c *Client) Timing(stat string, delta int64, tags ...Tag) {
 // Usually request processing time, time to run database query, etc. are used with
 // this metric type.
 func (c *Client) PrecisionTiming(stat string, delta time.Duration, tags ...Tag) {
-	c.bufLock.Lock()
-	lastLen := len(c.buf)
+	c.trans.bufLock.Lock()
+	lastLen := len(c.trans.buf)
 
-	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
-	c.buf = append(c.buf, []byte(stat)...)
-	if c.options.TagFormat.Placement == TagPlacementName {
-		c.buf = c.formatTags(c.buf, tags)
+	c.trans.buf = append(c.trans.buf, []byte(c.metricPrefix)...)
+	c.trans.buf = append(c.trans.buf, []byte(stat)...)
+	if c.trans.tagFormat.Placement == TagPlacementName {
+		c.trans.buf = c.formatTags(c.trans.buf, tags)
 	}
-	c.buf = append(c.buf, ':')
-	c.buf = strconv.AppendFloat(c.buf, float64(delta)/float64(time.Millisecond), 'f', -1, 64)
-	c.buf = append(c.buf, []byte("|ms")...)
-	if c.options.TagFormat.Placement == TagPlacementSuffix {
-		c.buf = c.formatTags(c.buf, tags)
+	c.trans.buf = append(c.trans.buf, ':')
+	c.trans.buf = strconv.AppendFloat(c.trans.buf, float64(delta)/float64(time.Millisecond), 'f', -1, 64)
+	c.trans.buf = append(c.trans.buf, []byte("|ms")...)
+	if c.trans.tagFormat.Placement == TagPlacementSuffix {
+		c.trans.buf = c.formatTags(c.trans.buf, tags)
 	}
-	c.buf = append(c.buf, '\n')
+	c.trans.buf = append(c.trans.buf, '\n')
 
-	c.checkBuf(lastLen)
-	c.bufLock.Unlock()
+	c.trans.checkBuf(lastLen)
+	c.trans.bufLock.Unlock()
 }
 
 func (c *Client) igauge(stat string, sign []byte, value int64, tags ...Tag) {
-	c.bufLock.Lock()
-	lastLen := len(c.buf)
+	c.trans.bufLock.Lock()
+	lastLen := len(c.trans.buf)
 
-	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
-	c.buf = append(c.buf, []byte(stat)...)
-	if c.options.TagFormat.Placement == TagPlacementName {
-		c.buf = c.formatTags(c.buf, tags)
+	c.trans.buf = append(c.trans.buf, []byte(c.metricPrefix)...)
+	c.trans.buf = append(c.trans.buf, []byte(stat)...)
+	if c.trans.tagFormat.Placement == TagPlacementName {
+		c.trans.buf = c.formatTags(c.trans.buf, tags)
 	}
-	c.buf = append(c.buf, ':')
-	c.buf = append(c.buf, sign...)
-	c.buf = strconv.AppendInt(c.buf, value, 10)
-	c.buf = append(c.buf, []byte("|g")...)
-	if c.options.TagFormat.Placement == TagPlacementSuffix {
-		c.buf = c.formatTags(c.buf, tags)
+	c.trans.buf = append(c.trans.buf, ':')
+	c.trans.buf = append(c.trans.buf, sign...)
+	c.trans.buf = strconv.AppendInt(c.trans.buf, value, 10)
+	c.trans.buf = append(c.trans.buf, []byte("|g")...)
+	if c.trans.tagFormat.Placement == TagPlacementSuffix {
+		c.trans.buf = c.formatTags(c.trans.buf, tags)
 	}
-	c.buf = append(c.buf, '\n')
+	c.trans.buf = append(c.trans.buf, '\n')
 
-	c.checkBuf(lastLen)
-	c.bufLock.Unlock()
+	c.trans.checkBuf(lastLen)
+	c.trans.bufLock.Unlock()
 }
 
 // Gauge sets or updates constant value for the interval
@@ -243,25 +279,25 @@ func (c *Client) GaugeDelta(stat string, value int64, tags ...Tag) {
 }
 
 func (c *Client) fgauge(stat string, sign []byte, value float64, tags ...Tag) {
-	c.bufLock.Lock()
-	lastLen := len(c.buf)
+	c.trans.bufLock.Lock()
+	lastLen := len(c.trans.buf)
 
-	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
-	c.buf = append(c.buf, []byte(stat)...)
-	if c.options.TagFormat.Placement == TagPlacementName {
-		c.buf = c.formatTags(c.buf, tags)
+	c.trans.buf = append(c.trans.buf, []byte(c.metricPrefix)...)
+	c.trans.buf = append(c.trans.buf, []byte(stat)...)
+	if c.trans.tagFormat.Placement == TagPlacementName {
+		c.trans.buf = c.formatTags(c.trans.buf, tags)
 	}
-	c.buf = append(c.buf, ':')
-	c.buf = append(c.buf, sign...)
-	c.buf = strconv.AppendFloat(c.buf, value, 'f', -1, 64)
-	c.buf = append(c.buf, []byte("|g")...)
-	if c.options.TagFormat.Placement == TagPlacementSuffix {
-		c.buf = c.formatTags(c.buf, tags)
+	c.trans.buf = append(c.trans.buf, ':')
+	c.trans.buf = append(c.trans.buf, sign...)
+	c.trans.buf = strconv.AppendFloat(c.trans.buf, value, 'f', -1, 64)
+	c.trans.buf = append(c.trans.buf, []byte("|g")...)
+	if c.trans.tagFormat.Placement == TagPlacementSuffix {
+		c.trans.buf = c.formatTags(c.trans.buf, tags)
 	}
-	c.buf = append(c.buf, '\n')
+	c.trans.buf = append(c.trans.buf, '\n')
 
-	c.checkBuf(lastLen)
-	c.bufLock.Unlock()
+	c.trans.checkBuf(lastLen)
+	c.trans.bufLock.Unlock()
 }
 
 // FGauge sends a floating point value for a gauge
@@ -286,22 +322,22 @@ func (c *Client) FGaugeDelta(stat string, value float64, tags ...Tag) {
 //
 // Statsd server will provide cardinality of the set over aggregation period.
 func (c *Client) SetAdd(stat string, value string, tags ...Tag) {
-	c.bufLock.Lock()
-	lastLen := len(c.buf)
+	c.trans.bufLock.Lock()
+	lastLen := len(c.trans.buf)
 
-	c.buf = append(c.buf, []byte(c.options.MetricPrefix)...)
-	c.buf = append(c.buf, []byte(stat)...)
-	if c.options.TagFormat.Placement == TagPlacementName {
-		c.buf = c.formatTags(c.buf, tags)
+	c.trans.buf = append(c.trans.buf, []byte(c.metricPrefix)...)
+	c.trans.buf = append(c.trans.buf, []byte(stat)...)
+	if c.trans.tagFormat.Placement == TagPlacementName {
+		c.trans.buf = c.formatTags(c.trans.buf, tags)
 	}
-	c.buf = append(c.buf, ':')
-	c.buf = append(c.buf, []byte(value)...)
-	c.buf = append(c.buf, []byte("|s")...)
-	if c.options.TagFormat.Placement == TagPlacementSuffix {
-		c.buf = c.formatTags(c.buf, tags)
+	c.trans.buf = append(c.trans.buf, ':')
+	c.trans.buf = append(c.trans.buf, []byte(value)...)
+	c.trans.buf = append(c.trans.buf, []byte("|s")...)
+	if c.trans.tagFormat.Placement == TagPlacementSuffix {
+		c.trans.buf = c.formatTags(c.trans.buf, tags)
 	}
-	c.buf = append(c.buf, '\n')
+	c.trans.buf = append(c.trans.buf, '\n')
 
-	c.checkBuf(lastLen)
-	c.bufLock.Unlock()
+	c.trans.checkBuf(lastLen)
+	c.trans.bufLock.Unlock()
 }

@@ -84,23 +84,23 @@ func Int64Tag(name string, value int64) Tag {
 }
 
 func (c *Client) formatTags(buf []byte, tags []Tag) []byte {
-	tagsLen := len(c.options.DefaultTags) + len(tags)
+	tagsLen := len(c.defaultTags) + len(tags)
 	if tagsLen == 0 {
 		return buf
 	}
 
-	buf = append(buf, []byte(c.options.TagFormat.FirstSeparator)...)
-	for i := range c.options.DefaultTags {
-		buf = c.options.DefaultTags[i].Append(buf, c.options.TagFormat)
+	buf = append(buf, []byte(c.trans.tagFormat.FirstSeparator)...)
+	for i := range c.defaultTags {
+		buf = c.defaultTags[i].Append(buf, c.trans.tagFormat)
 		if i != tagsLen-1 {
-			buf = append(buf, c.options.TagFormat.OtherSeparator)
+			buf = append(buf, c.trans.tagFormat.OtherSeparator)
 		}
 	}
 
 	for i := range tags {
-		buf = tags[i].Append(buf, c.options.TagFormat)
-		if i+len(c.options.DefaultTags) != tagsLen-1 {
-			buf = append(buf, c.options.TagFormat.OtherSeparator)
+		buf = tags[i].Append(buf, c.trans.tagFormat)
+		if i+len(c.defaultTags) != tagsLen-1 {
+			buf = append(buf, c.trans.tagFormat.OtherSeparator)
 		}
 	}
 
