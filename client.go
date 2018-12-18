@@ -183,6 +183,35 @@ func (c *Client) Decr(stat string, count int64, tags ...Tag) {
 	c.Incr(stat, -count, tags...)
 }
 
+// FIncr increments a float counter metric
+func (c *Client) FIncr(stat string, count float64, tags ...Tag) {
+	if 0 != count {
+		c.trans.bufLock.Lock()
+		lastLen := len(c.trans.buf)
+
+		c.trans.buf = append(c.trans.buf, []byte(c.metricPrefix)...)
+		c.trans.buf = append(c.trans.buf, []byte(stat)...)
+		if c.trans.tagFormat.Placement == TagPlacementName {
+			c.trans.buf = c.formatTags(c.trans.buf, tags)
+		}
+		c.trans.buf = append(c.trans.buf, ':')
+		c.trans.buf = strconv.AppendFloat(c.trans.buf, count, 'f', -1, 64)
+		c.trans.buf = append(c.trans.buf, []byte("|c")...)
+		if c.trans.tagFormat.Placement == TagPlacementSuffix {
+			c.trans.buf = c.formatTags(c.trans.buf, tags)
+		}
+		c.trans.buf = append(c.trans.buf, '\n')
+
+		c.trans.checkBuf(lastLen)
+		c.trans.bufLock.Unlock()
+	}
+}
+
+// FDecr decrements a float counter metric
+func (c *Client) FDecr(stat string, count float64, tags ...Tag) {
+	c.FIncr(stat, -count, tags...)
+}
+
 // Timing tracks a duration event, the time delta must be given in milliseconds
 func (c *Client) Timing(stat string, delta int64, tags ...Tag) {
 	c.trans.bufLock.Lock()

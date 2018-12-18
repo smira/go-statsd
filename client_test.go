@@ -103,6 +103,14 @@ func TestCommands(t *testing.T) {
 		func() { client.Decr("req.count", 30) },
 		[]string{"foo.req.count:-30|c"}))
 
+	t.Run("FIncr", compareOutput(
+		func() { client.FIncr("req.count", 0.3) },
+		[]string{"foo.req.count:0.3|c"}))
+
+	t.Run("FDecr", compareOutput(
+		func() { client.FDecr("req.count", 0.3) },
+		[]string{"foo.req.count:-0.3|c"}))
+
 	t.Run("Timing", compareOutput(
 		func() { client.Timing("req.duration", 100) },
 		[]string{"foo.req.duration:100|ms"}))
