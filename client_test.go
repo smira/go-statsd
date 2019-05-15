@@ -62,6 +62,13 @@ func setupListener(t *testing.T) (*net.UDPConn, chan []byte) {
 	return inSocket, received
 }
 
+func TestWrongAddress(t *testing.T) {
+	client := NewClient("BOOM:BOOM")
+	if err := client.Close(); err != nil {
+		t.Errorf("error from close: %v", err)
+	}
+}
+
 func TestCommands(t *testing.T) {
 	inSocket, received := setupListener(t)
 
