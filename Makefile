@@ -1,18 +1,19 @@
 all: test check bench
 
+.PHONY: deps
 deps:
 	go get -v -d -t ./...
-	go get -v github.com/alecthomas/gometalinter
-	gometalinter --install
 
+.PHONY: test
 test: deps
 	go test -race -v -coverprofile=coverage.txt -covermode=atomic
 
+.PHONY: bench
 bench: deps
 	go test -v -bench . -benchmem -run nothing ./...
 
+.PHONY: check
 check: deps
-	go test -i
-	gometalinter --vendored-linters --deadline=30s --cyclo-over=15 ./...
+	golangci-lint run
 
 .PHONY: deps bench test check
