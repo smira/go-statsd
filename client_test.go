@@ -339,6 +339,39 @@ func TestConcurrent(t *testing.T) {
 	}
 }
 
+func BenchmarkSimple(b *testing.B) {
+	inSocket, err := net.ListenUDP("udp4", &net.UDPAddr{
+		IP: net.IPv4(127, 0, 0, 1),
+	})
+	if err != nil {
+		b.Error(err)
+	}
+
+	go func() {
+		buf := make([]byte, 1500)
+		for {
+			_, err := inSocket.Read(buf)
+			if err != nil {
+				return
+			}
+		}
+
+	}()
+
+	c := NewClient(inSocket.LocalAddr().String(), MetricPrefix("metricPrefix"), MaxPacketSize(1432),
+		FlushInterval(100*time.Millisecond), SendLoopCount(2))
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		c.Incr("foo.bar.counter", 1)
+		c.Gauge("foo.bar.gauge", 42)
+		c.PrecisionTiming("foo.bar.timing", 153*time.Millisecond)
+	}
+	_ = c.Close()
+	_ = inSocket.Close()
+}
+
 func BenchmarkComplexDelivery(b *testing.B) {
 	inSocket, err := net.ListenUDP("udp4", &net.UDPAddr{
 		IP: net.IPv4(127, 0, 0, 1),
@@ -392,14 +425,14 @@ func BenchmarkTagged(b *testing.B) {
 
 	}()
 
-	client := NewClient(inSocket.LocalAddr().String(), MetricPrefix(prefixNoDot), MaxPacketSize(1432),
-		FlushInterval(flushPeriod), SendLoopCount(2), DefaultTags(StringTag("host", "foo")),
+	client := NewClient(inSocket.LocalAddr().String(), MetricPrefix("metricPrefix"), MaxPacketSize(1432),
+		FlushInterval(100*time.Millisecond), SendLoopCount(2), DefaultTags(StringTag("host", "foo")),
 		SendQueueCapacity(10), BufPoolCapacity(40))
 
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		client.Incr(counterKey, 1, StringTag("route", "api.one"), IntTag("status", 200))
+		client.Incr("foo.bar.counter", 1, StringTag("route", "api.one"), IntTag("status", 200))
 		client.Timing("another.value", 157, StringTag("service", "db"))
 		client.PrecisionTiming("response.time.for.some.api", 150*time.Millisecond, IntTag("status", 404))
 		client.PrecisionTiming("response.time.for.some.api.case1", 150*time.Millisecond, StringTag("service", "db"), IntTag("status", 200))

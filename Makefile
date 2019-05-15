@@ -1,19 +1,14 @@
 all: test check bench
 
-.PHONY: deps
-deps:
-	go get -v -d -t ./...
-
 .PHONY: test
-test: deps
+test:
 	go test -race -v -coverprofile=coverage.txt -covermode=atomic
 
 .PHONY: bench
-bench: deps
+bench:
 	go test -v -bench . -benchmem -run nothing ./...
 
 .PHONY: check
-check: deps
+check:
 	golangci-lint run
 
-.PHONY: deps bench test check
