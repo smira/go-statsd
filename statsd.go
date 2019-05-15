@@ -59,7 +59,7 @@ For every metric sent, tags could be added as the last argument(s) to the functi
 call:
 
     client.Incr("request", 1,
-        statsd.StringTag("procotol", "http"), statsd.IntTag("port", 80))
+        statsd.StringTag("protocol", "http"), statsd.IntTag("port", 80))
 */
 package statsd
 

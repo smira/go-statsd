@@ -154,7 +154,7 @@ func (c *Client) GetLostPackets() int64 {
 //
 // Often used to note a particular event, for example incoming web request.
 func (c *Client) Incr(stat string, count int64, tags ...Tag) {
-	if 0 != count {
+	if count != 0 {
 		c.trans.bufLock.Lock()
 		lastLen := len(c.trans.buf)
 
@@ -185,7 +185,7 @@ func (c *Client) Decr(stat string, count int64, tags ...Tag) {
 
 // FIncr increments a float counter metric
 func (c *Client) FIncr(stat string, count float64, tags ...Tag) {
-	if 0 != count {
+	if count != 0 {
 		c.trans.bufLock.Lock()
 		lastLen := len(c.trans.buf)
 
