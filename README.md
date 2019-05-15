@@ -1,5 +1,3 @@
-# go-statsd
-
 [![Build Status](https://travis-ci.org/smira/go-statsd.svg?branch=master)](https://travis-ci.org/smira/go-statsd)
 [![Documentation](https://godoc.org/github.com/smira/go-statsd?status.svg)](http://godoc.org/github.com/smira/go-statsd)
 [![Go Report Card](https://goreportcard.com/badge/github.com/smira/go-statsd)](https://goreportcard.com/report/github.com/smira/go-statsd)
@@ -95,7 +93,7 @@ client.Incr("request", 1,
 
 ## Benchmark
 
-Benchmark comparing several clients:
+[Benchmark](https://github.com/smira/go-statsd-benchmark) comparing several clients:
 
 * https://github.com/alexcesaro/statsd/ (`Alexcesaro`)
 * this client (`GoStatsd`)
@@ -106,12 +104,12 @@ Benchmark comparing several clients:
 
 Benchmark results:
 
-    BenchmarkAlexcesaro-8        	 3000000	       476 ns/op	       0 B/op	       0 allocs/op
-    BenchmarkGoStatsd-8          	 5000000	       266 ns/op	       1 B/op	       0 allocs/op
-    BenchmarkCactus-8            	 2000000	       626 ns/op	      11 B/op	       0 allocs/op
-    BenchmarkG2s-8               	   50000	     20539 ns/op	     576 B/op	      21 allocs/op
-    BenchmarkQuipo-8             	 1000000	      1508 ns/op	     383 B/op	       6 allocs/op
-    BenchmarkUnix4ever-8         	 1000000	      1906 ns/op	     376 B/op	      18 allocs/op
+    BenchmarkAlexcesaro-12    	 5000000	       333 ns/op	       0 B/op	       0 allocs/op
+    BenchmarkGoStatsd-12      	10000000	       230 ns/op	      23 B/op	       0 allocs/op
+    BenchmarkCactus-12        	 3000000	       604 ns/op	       5 B/op	       0 allocs/op
+    BenchmarkG2s-12           	  200000	      7499 ns/op	     576 B/op	      21 allocs/op
+    BenchmarkQuipo-12         	 1000000	      1048 ns/op	     384 B/op	       7 allocs/op
+    BenchmarkUnix4ever-12        1000000	      1695 ns/op	     408 B/op	      18 allocs/op
 
 ## Origins
 
