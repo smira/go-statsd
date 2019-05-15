@@ -1,0 +1,10 @@
+github.com/Unix4ever/statsd v0.0.0-20160120230120-a8219f1fb9d8 h1:Z2mWzwrj1bPcMWAyqWkadeguRCOzkQOcoqJG0yitrjk=
+github.com/Unix4ever/statsd v0.0.0-20160120230120-a8219f1fb9d8/go.mod h1:flll3wbNf1Qxq2GxIDF5x0IEnv0BvkBSbPSEsnW9I4Q=
+github.com/cactus/go-statsd-client/statsd v0.0.0-20190501063751-9a7692639588 h1:6yVhh6P5OsW6HutPt7z2ggDgZczgUtSl2kGRe+DslPU=
+github.com/cactus/go-statsd-client/statsd v0.0.0-20190501063751-9a7692639588/go.mod h1:3/sdo8I67TaOslRGJ6FqQC/ynu+wg7H6IE4WYtr51hk=
+github.com/peterbourgon/g2s v0.0.0-20170223122336-d4e7ad98afea h1:sKwxy1H95npauwu8vtF95vG/syrL0p8fSZo/XlDg5gk=
+github.com/peterbourgon/g2s v0.0.0-20170223122336-d4e7ad98afea/go.mod h1:1VcHEd3ro4QMoHfiNl/j7Jkln9+KQuorp0PItHMJYNg=
+github.com/quipo/statsd v0.0.0-20180118161217-3d6a5565f314 h1:86XpVGN4oVnVheHik6ioWg+1fOnWu1GgyNzV6cr2ifs=
+github.com/quipo/statsd v0.0.0-20180118161217-3d6a5565f314/go.mod h1:1COUodqytMiv/GkAVUGhc0CA6e8xak5U4551TY7iEe0=
+gopkg.in/alexcesaro/statsd.v2 v2.0.0 h1:FXkZSCZIH17vLCO5sO2UucTHsH9pc+17F6pl3JVCwMc=
+gopkg.in/alexcesaro/statsd.v2 v2.0.0/go.mod h1:i0ubccKGzBVNBpdGV5MocxyA/XlLUJzA7SLonnE4drU=
