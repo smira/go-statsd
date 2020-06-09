@@ -46,41 +46,41 @@ type TagFormat struct {
 
 // Tag types
 const (
-	typeString = iota
-	typeInt64
+	TypeString = iota
+	TypeInt64
 )
 
 // Tag is metric-specific tag
 type Tag struct {
-	name     string
-	strvalue string
-	intvalue int64
-	typ      byte
+	Name     string
+	Strvalue string
+	Intvalue int64
+	Typ      byte
 }
 
 // Append formats tag and appends it to the buffer
 func (tag Tag) Append(buf []byte, style *TagFormat) []byte {
-	buf = append(buf, []byte(tag.name)...)
+	buf = append(buf, []byte(tag.Name)...)
 	buf = append(buf, style.KeyValueSeparator)
-	if tag.typ == typeString {
-		return append(buf, []byte(tag.strvalue)...)
+	if tag.Typ == TypeString {
+		return append(buf, []byte(tag.Strvalue)...)
 	}
-	return strconv.AppendInt(buf, tag.intvalue, 10)
+	return strconv.AppendInt(buf, tag.Intvalue, 10)
 }
 
 // StringTag creates Tag with string value
 func StringTag(name, value string) Tag {
-	return Tag{name: name, strvalue: value, typ: typeString}
+	return Tag{Name: name, Strvalue: value, Typ: TypeString}
 }
 
 // IntTag creates Tag with integer value
 func IntTag(name string, value int) Tag {
-	return Tag{name: name, intvalue: int64(value), typ: typeInt64}
+	return Tag{Name: name, Intvalue: int64(value), Typ: TypeInt64}
 }
 
 // Int64Tag creates Tag with integer value
 func Int64Tag(name string, value int64) Tag {
-	return Tag{name: name, intvalue: value, typ: typeInt64}
+	return Tag{Name: name, Intvalue: value, Typ: TypeInt64}
 }
 
 func (c *Client) formatTags(buf []byte, tags []Tag) []byte {
