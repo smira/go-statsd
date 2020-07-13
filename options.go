@@ -140,7 +140,7 @@ type Option func(c *ClientOptions)
 // To avoid providing this metricPrefix for every metric being collected,
 // and to enable shared libraries to collect metric under app name,
 // use MetricPrefix to set global metricPrefix for all the app metrics,
-// e.g. `MetricPrefix("app".)`.
+// e.g. `MetricPrefix("app.")`.
 //
 // If not set defaults to empty string
 func MetricPrefix(prefix string) Option {
