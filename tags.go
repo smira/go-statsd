@@ -127,4 +127,14 @@ var (
 		OtherSeparator:    ',',
 		KeyValueSeparator: ':',
 	}
+
+	// TagFormatGraphite is format for Graphite
+	//
+	// Docs: https://graphite.readthedocs.io/en/latest/tags.html
+	TagFormatGraphite = &TagFormat{
+		Placement:         TagPlacementName,
+		FirstSeparator:    ";",
+		OtherSeparator:    ';',
+		KeyValueSeparator: '=',
+	}
 )

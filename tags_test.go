@@ -41,13 +41,19 @@ func TestTags(t *testing.T) {
 		compare(StringTag("name", "value"), TagFormatDatadog, "name:value"))
 	t.Run("StringInflux",
 		compare(StringTag("name", "value"), TagFormatInfluxDB, "name=value"))
+	t.Run("StringGraphite",
+		compare(StringTag("name", "value"), TagFormatInfluxDB, "name=value"))
 	t.Run("IntDatadog",
 		compare(IntTag("foo", -33), TagFormatDatadog, "foo:-33"))
 	t.Run("IntInflux",
 		compare(IntTag("foo", -33), TagFormatInfluxDB, "foo=-33"))
+	t.Run("IntGraphite",
+		compare(IntTag("foo", -33), TagFormatInfluxDB, "foo=-33"))
 	t.Run("Int64Datadog",
 		compare(Int64Tag("foo", 1024*1024*1024*1024), TagFormatDatadog, "foo:1099511627776"))
 	t.Run("Int64Influx",
+		compare(Int64Tag("foo", 1024*1024*1024*1024), TagFormatInfluxDB, "foo=1099511627776"))
+	t.Run("Int64Graphite",
 		compare(Int64Tag("foo", 1024*1024*1024*1024), TagFormatInfluxDB, "foo=1099511627776"))
 }
 
@@ -67,4 +73,6 @@ func TestFormatTags(t *testing.T) {
 		compare([]Tag{StringTag("type", "web"), IntTag("status", 200)}, TagFormatDatadog, "|#host:foo,type:web,status:200"))
 	t.Run("Influx",
 		compare([]Tag{StringTag("type", "web"), IntTag("status", 200)}, TagFormatInfluxDB, ",host=foo,type=web,status=200"))
+	t.Run("Graphite",
+		compare([]Tag{StringTag("type", "web"), IntTag("status", 200)}, TagFormatGraphite, ";host=foo;type=web;status=200"))
 }
