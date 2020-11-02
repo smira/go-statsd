@@ -72,7 +72,8 @@ client.Close()
 
 Metrics could be tagged to support aggregation on TSDB side. go-statsd supports
 tags in [InfluxDB](https://github.com/influxdata/telegraf/tree/master/plugins/inputs/statsd)
-and [Datadog](https://docs.datadoghq.com/developers/dogstatsd/#datagram-format) formats.
+, [Datadog](https://docs.datadoghq.com/developers/dogstatsd/#datagram-format)
+and [Graphite](https://graphite.readthedocs.io/en/latest/tags.html) formats.
 Format and default tags (applied to every metric) are passed as options
 to the client initialization:
 
