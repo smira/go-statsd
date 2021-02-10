@@ -41,6 +41,11 @@ type Client struct {
 }
 
 type transport struct {
+	// these fields are updated with atomic operations,
+	// so they should be at the top for proper alignment
+	lostPacketsPeriod  int64
+	lostPacketsOverall int64
+
 	maxPacketSize int
 	tagFormat     *TagFormat
 
@@ -53,9 +58,6 @@ type transport struct {
 	shutdown     chan struct{}
 	shutdownOnce sync.Once
 	shutdownWg   sync.WaitGroup
-
-	lostPacketsPeriod  int64
-	lostPacketsOverall int64
 }
 
 // NewClient creates new statsd client and starts background processing

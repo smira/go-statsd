@@ -43,7 +43,7 @@ func setupListener(t *testing.T) (*net.UDPConn, chan []byte) {
 		t.Error(err)
 	}
 
-	received := make(chan []byte)
+	received := make(chan []byte, 1024)
 
 	go func() {
 		for {
@@ -305,8 +305,8 @@ func TestConcurrent(t *testing.T) {
 		wg1.Done()
 	}()
 
-	workers := 32
-	count := 4096
+	workers := 16
+	count := 1024
 
 	for i := 0; i < workers; i++ {
 		wg2.Add(1)
@@ -334,7 +334,14 @@ func TestConcurrent(t *testing.T) {
 
 	_ = client.Close()
 
-	time.Sleep(time.Second)
+	// wait for 10 seconds for all the packets to be received
+	for i := 0; i < 10; i++ {
+		if atomic.LoadInt64(&totalSent) == atomic.LoadInt64(&totalReceived) {
+			break
+		}
+
+		time.Sleep(time.Second)
+	}
 
 	_ = inSocket.Close()
 	close(received)
