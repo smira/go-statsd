@@ -41,7 +41,7 @@ type TagFormat struct {
 	// OtherSeparator separates 2nd and subsequent tags from each other
 	OtherSeparator byte
 	// KeyValueSeparator separates tag name and tag value
-	KeyValueSeparator byte
+	KeyValueSeparator []byte
 }
 
 // Tag types
@@ -61,7 +61,7 @@ type Tag struct {
 // Append formats tag and appends it to the buffer
 func (tag Tag) Append(buf []byte, style *TagFormat) []byte {
 	buf = append(buf, []byte(tag.name)...)
-	buf = append(buf, style.KeyValueSeparator)
+	buf = append(buf, style.KeyValueSeparator...)
 	if tag.typ == typeString {
 		return append(buf, []byte(tag.strvalue)...)
 	}
@@ -115,7 +115,7 @@ var (
 		Placement:         TagPlacementName,
 		FirstSeparator:    ",",
 		OtherSeparator:    ',',
-		KeyValueSeparator: '=',
+		KeyValueSeparator: []byte{'='},
 	}
 
 	// TagFormatDatadog is format for DogStatsD (Datadog Agent)
@@ -125,7 +125,7 @@ var (
 		Placement:         TagPlacementSuffix,
 		FirstSeparator:    "|#",
 		OtherSeparator:    ',',
-		KeyValueSeparator: ':',
+		KeyValueSeparator: []byte{':'},
 	}
 
 	// TagFormatGraphite is format for Graphite
@@ -135,6 +135,16 @@ var (
 		Placement:         TagPlacementName,
 		FirstSeparator:    ";",
 		OtherSeparator:    ';',
-		KeyValueSeparator: '=',
+		KeyValueSeparator: []byte{'='},
+	}
+
+	// TagFormatOkmeter is format for Okmeter agent
+	//
+	// Docs: https://okmeter.io/misc/docs#statsd-plugin-config
+	TagFormatOkmeter = &TagFormat{
+		Placement:         TagPlacementName,
+		FirstSeparator:    ".",
+		OtherSeparator:    '.',
+		KeyValueSeparator: []byte("_is_"),
 	}
 )

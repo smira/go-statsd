@@ -75,4 +75,6 @@ func TestFormatTags(t *testing.T) {
 		compare([]Tag{StringTag("type", "web"), IntTag("status", 200)}, TagFormatInfluxDB, ",host=foo,type=web,status=200"))
 	t.Run("Graphite",
 		compare([]Tag{StringTag("type", "web"), IntTag("status", 200)}, TagFormatGraphite, ";host=foo;type=web;status=200"))
+	t.Run("Okmeter",
+		compare([]Tag{StringTag("type", "web"), IntTag("status", 200)}, TagFormatOkmeter, ".host_is_foo.type_is_web.status_is_200"))
 }
