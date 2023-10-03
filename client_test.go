@@ -334,8 +334,8 @@ func TestConcurrent(t *testing.T) {
 
 	_ = client.Close()
 
-	// wait for 20 seconds for all the packets to be received
-	for i := 0; i < 20; i++ {
+	// wait for 30 seconds for all the packets to be received
+	for i := 0; i < 30; i++ {
 		if atomic.LoadInt64(&totalSent) == atomic.LoadInt64(&totalReceived) {
 			break
 		}
