@@ -10,56 +10,56 @@ Performance of statsd client library is critical to introduce as little overhead
 
 Client has zero memory allocation per metric being sent, architecture is the following:
 
- * there's ring of buffers, each buffer is UDP packet
- * buffer is taken from the pool, filled with metrics, passed on to the network delivery and
-   passed back to the pool
- * buffer is flushed either when it is full or when flush period comes (e.g. every 100ms)
- * separate goroutine is handling network operations: sending UDP packets and reconnecting UDP socket
-   (to handle statsd DNS address change)
- * when metric is serialized, zero allocation methods are used to avoid `reflect` and memory allocation
+  - there's ring of buffers, each buffer is UDP packet
+  - buffer is taken from the pool, filled with metrics, passed on to the network delivery and
+    passed back to the pool
+  - buffer is flushed either when it is full or when flush period comes (e.g. every 100ms)
+  - separate goroutine is handling network operations: sending UDP packets and reconnecting UDP socket
+    (to handle statsd DNS address change)
+  - when metric is serialized, zero allocation methods are used to avoid `reflect` and memory allocation
 
 Ideas were borrowed from the following stastd clients:
 
- * https://github.com/quipo/statsd
- * https://github.com/Unix4ever/statsd
- * https://github.com/alexcesaro/statsd/
- * https://github.com/armon/go-metrics
+  - https://github.com/quipo/statsd
+  - https://github.com/Unix4ever/statsd
+  - https://github.com/alexcesaro/statsd/
+  - https://github.com/armon/go-metrics
 
-Usage
+# Usage
 
 Initialize client instance with options, one client per application is usually enough:
 
-    client := statsd.NewClient("localhost:8125",
-        statsd.MaxPacketSize(1400),
-        statsd.MetricPrefix("web."))
+	client := statsd.NewClient("localhost:8125",
+	    statsd.MaxPacketSize(1400),
+	    statsd.MetricPrefix("web."))
 
 Send metrics as events happen in the application, metrics will be packed together and
 delivered to statsd server:
 
-    start := time.Now()
-    client.Incr("requests.http", 1)
-    ...
-    client.PrecisionTiming("requests.route.api.latency", time.Since(start))
+	start := time.Now()
+	client.Incr("requests.http", 1)
+	...
+	client.PrecisionTiming("requests.route.api.latency", time.Since(start))
 
 Shutdown client during application shutdown to flush all the pending metrics:
 
-    client.Close()
+	client.Close()
 
-Tagging
+# Tagging
 
 Metrics could be tagged to support aggregation on TSDB side. go-statsd supports
 tags in InfluxDB and Datadog formats. Format and default tags (applied to every
 metric) are passed as options to the client initialization:
 
-    client := statsd.NewClient("localhost:8125",
-        statsd.TagStyle(TagFormatDatadog),
-        statsd.DefaultTags(statsd.StringTag("app", "billing")))
+	client := statsd.NewClient("localhost:8125",
+	    statsd.TagStyle(TagFormatDatadog),
+	    statsd.DefaultTags(statsd.StringTag("app", "billing")))
 
 For every metric sent, tags could be added as the last argument(s) to the function
 call:
 
-    client.Incr("request", 1,
-        statsd.StringTag("protocol", "http"), statsd.IntTag("port", 80))
+	client.Incr("request", 1,
+	    statsd.StringTag("protocol", "http"), statsd.IntTag("port", 80))
 */
 package statsd
 

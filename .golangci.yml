@@ -8,10 +8,9 @@ linters:
     - megacheck
     - staticcheck
     - unused
-    - deadcode
     - typecheck
     - ineffassign
-    - golint
+    - revive
     - stylecheck
     - unparam
     - nakedret

@@ -142,7 +142,7 @@ WAIT:
 	}
 
 	// drain send queue waiting for flush loops to terminate
-	for range t.sendQueue {
+	for range t.sendQueue { //nolint:revive
 	}
 }
 

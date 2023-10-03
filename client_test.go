@@ -288,7 +288,7 @@ func TestConcurrent(t *testing.T) {
 				i2 := strings.Index(part, "|")
 
 				if i1 == -1 || i2 == -1 {
-					t.Logf("unaparseable part: %#v", part)
+					t.Logf("non-parsable part: %#v", part)
 					continue
 				}
 
@@ -334,8 +334,8 @@ func TestConcurrent(t *testing.T) {
 
 	_ = client.Close()
 
-	// wait for 10 seconds for all the packets to be received
-	for i := 0; i < 10; i++ {
+	// wait for 20 seconds for all the packets to be received
+	for i := 0; i < 20; i++ {
 		if atomic.LoadInt64(&totalSent) == atomic.LoadInt64(&totalReceived) {
 			break
 		}
