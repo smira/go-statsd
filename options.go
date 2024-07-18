@@ -266,6 +266,7 @@ func DefaultTags(tags ...Tag) Option {
 	}
 }
 
+// Network sets the network to use Dialing the statsd server
 func Network(network string) Option {
 	return func(c *ClientOptions) {
 		c.AddrNetwork = network
