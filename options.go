@@ -40,6 +40,7 @@ const (
 	DefaultBufPoolCapacity   = 20
 	DefaultSendQueueCapacity = 10
 	DefaultSendLoopCount     = 1
+	DefaultNetwork           = "udp"
 )
 
 // SomeLogger defines logging interface that allows using 3rd party loggers
@@ -52,6 +53,9 @@ type SomeLogger interface {
 type ClientOptions struct {
 	// Addr is statsd server address in "host:port" format
 	Addr string
+
+	// AddrNetwork is network type for the address. Defaults to udp.
+	AddrNetwork string
 
 	// MetricPrefix is metricPrefix to prepend to every metric being sent
 	//
@@ -259,5 +263,12 @@ func TagStyle(style *TagFormat) Option {
 func DefaultTags(tags ...Tag) Option {
 	return func(c *ClientOptions) {
 		c.DefaultTags = tags
+	}
+}
+
+// Network sets the network to use Dialing the statsd server
+func Network(network string) Option {
+	return func(c *ClientOptions) {
+		c.AddrNetwork = network
 	}
 }

@@ -25,6 +25,7 @@ SOFTWARE.
 */
 
 import (
+	"fmt"
 	"math/rand"
 	"net"
 	"strconv"
@@ -382,6 +383,42 @@ func BenchmarkSimple(b *testing.B) {
 		c.Gauge("foo.bar.gauge", 42)
 		c.PrecisionTiming("foo.bar.timing", 153*time.Millisecond)
 	}
+	_ = c.Close()
+	_ = inSocket.Close()
+}
+
+func BenchmarkSimpleUnixSocket(b *testing.B) {
+	socket := fmt.Sprintf("/tmp/go-statsd-%d", time.Now().UnixNano())
+	inSocket, err := net.ListenUnixgram("unixgram", &net.UnixAddr{Name: socket, Net: "unixgram"})
+	if err != nil {
+		b.Error(err)
+		return
+	}
+	if err := inSocket.SetReadBuffer(1024_000); err != nil {
+		b.Error(err)
+		return
+	}
+	go func() {
+		buf := make([]byte, 1500)
+		for {
+			_, err := inSocket.Read(buf)
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	c := NewClient(socket, Network("unixgram"), MetricPrefix("metricPrefix"),
+		MaxPacketSize(1432), FlushInterval(100*time.Millisecond), SendLoopCount(1))
+
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		c.Incr("foo.bar.counter", 1)
+		c.Gauge("foo.bar.gauge", 42)
+		c.PrecisionTiming("foo.bar.timing", 153*time.Millisecond)
+	}
+	time.Sleep(1 * time.Millisecond)
 	_ = c.Close()
 	_ = inSocket.Close()
 }

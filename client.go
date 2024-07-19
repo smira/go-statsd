@@ -68,6 +68,7 @@ type transport struct {
 func NewClient(addr string, options ...Option) *Client {
 	opts := ClientOptions{
 		Addr:              addr,
+		AddrNetwork:       DefaultNetwork,
 		MetricPrefix:      DefaultMetricPrefix,
 		MaxPacketSize:     DefaultMaxPacketSize,
 		FlushInterval:     DefaultFlushInterval,
@@ -106,7 +107,7 @@ func NewClient(addr string, options ...Option) *Client {
 
 	for i := 0; i < opts.SendLoopCount; i++ {
 		c.trans.shutdownWg.Add(1)
-		go c.trans.sendLoop(opts.Addr, opts.ReconnectInterval, opts.RetryTimeout, opts.Logger)
+		go c.trans.sendLoop(opts.Addr, opts.AddrNetwork, opts.ReconnectInterval, opts.RetryTimeout, opts.Logger)
 	}
 
 	if opts.ReportInterval > 0 {

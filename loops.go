@@ -63,7 +63,7 @@ func (t *transport) flushLoop(flushInterval time.Duration) {
 }
 
 // sendLoop handles packet delivery over UDP and periodic reconnects
-func (t *transport) sendLoop(addr string, reconnectInterval, retryTimeout time.Duration, log SomeLogger) {
+func (t *transport) sendLoop(addr string, network string, reconnectInterval, retryTimeout time.Duration, log SomeLogger) {
 	var (
 		sock       net.Conn
 		err        error
@@ -94,7 +94,7 @@ RECONNECT:
 		}()
 
 		var d net.Dialer
-		return d.DialContext(ctx, "udp", addr)
+		return d.DialContext(ctx, network, addr)
 	}()
 
 	if err != nil {
